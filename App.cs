@@ -35,6 +35,7 @@ namespace MikroTikAddressList
         bool _useTtlAsTimeout;
         string _defaultTimeout;
         bool _enableIPv6;
+        bool _waitForMikrotik;
         bool _skipCertificateCheck;
         HashSet<string> _domains;
 
@@ -187,6 +188,7 @@ namespace MikroTikAddressList
             _useTtlAsTimeout = jsonConfig.GetPropertyValue("useTtlAsTimeout", true);
             _defaultTimeout = jsonConfig.GetPropertyValue("defaultTimeout", "00:05:00");
             _enableIPv6 = jsonConfig.GetPropertyValue("enableIPv6", false);
+            _waitForMikrotik = jsonConfig.GetPropertyValue("waitForMikrotik", false);
             _skipCertificateCheck = jsonConfig.GetPropertyValue("skipCertificateCheck", true);
 
             // Parse domains list
@@ -286,11 +288,11 @@ namespace MikroTikAddressList
                     }
                 }
 
-                // Fire and don't block DNS response
                 if (tasks.Count > 0)
                 {
-                    _ = Task.Run(async () =>
+                    if (_waitForMikrotik)
                     {
+                        // Wait for MikroTik before returning DNS response
                         try
                         {
                             await Task.WhenAll(tasks);
@@ -299,7 +301,22 @@ namespace MikroTikAddressList
                         {
                             _dnsServer.WriteLog("[MikroTikAddressList] Error: " + ex.Message);
                         }
-                    });
+                    }
+                    else
+                    {
+                        // Fire and forget — don't block DNS response
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await Task.WhenAll(tasks);
+                            }
+                            catch (Exception ex)
+                            {
+                                _dnsServer.WriteLog("[MikroTikAddressList] Error: " + ex.Message);
+                            }
+                        });
+                    }
                 }
 
                 return response;

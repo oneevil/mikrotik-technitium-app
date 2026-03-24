@@ -9,7 +9,7 @@
 1. Вы указываете список доменов (например `ya.ru`, `google.com`)
 2. Когда любой клиент резолвит эти домены (включая поддомены), плагин перехватывает ответ
 3. IP-адреса из A/AAAA записей отправляются в MikroTik address-list через REST API
-4. DNS-ответ клиенту возвращается без задержки (отправка в MikroTik идёт в фоне)
+4. По умолчанию DNS-ответ уходит сразу (фоновый режим). С `waitForMikrotik: true` ответ задерживается до подтверждения от MikroTik
 
 ### Особенности
 
@@ -52,6 +52,7 @@ zip MikroTikAddressListApp.zip MikroTikAddressListApp.dll MikroTikAddressListApp
   "useTtlAsTimeout": true,
   "defaultTimeout": "00:05:00",
   "enableIPv6": false,
+  "waitForMikrotik": false,
   "skipCertificateCheck": true,
   "domains": [
     "ya.ru",
@@ -70,6 +71,7 @@ zip MikroTikAddressListApp.zip MikroTikAddressListApp.dll MikroTikAddressListApp
 | `useTtlAsTimeout` | Использовать DNS TTL как timeout записи |
 | `defaultTimeout` | Timeout по умолчанию (если TTL выключен) |
 | `enableIPv6` | Отправлять AAAA записи в `/ipv6/firewall/address-list` |
+| `waitForMikrotik` | Ждать подтверждения от MikroTik перед отправкой DNS-ответа клиенту |
 | `skipCertificateCheck` | Игнорировать ошибки SSL-сертификата |
 | `domains` | Список отслеживаемых доменов |
 

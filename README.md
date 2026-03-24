@@ -9,7 +9,7 @@ A plugin for [Technitium DNS Server](https://technitium.com/dns/) that automatic
 1. You specify a list of domains (e.g. `ya.ru`, `google.com`)
 2. When any client resolves these domains (including subdomains), the plugin intercepts the response
 3. IP addresses from A/AAAA records are sent to the MikroTik address-list via REST API
-4. The DNS response is returned to the client without delay (MikroTik calls run in the background)
+4. By default, the DNS response is returned immediately (background mode). With `waitForMikrotik: true`, the response is held until MikroTik confirms
 
 ### Features
 
@@ -52,6 +52,7 @@ zip MikroTikAddressListApp.zip MikroTikAddressListApp.dll MikroTikAddressListApp
   "useTtlAsTimeout": true,
   "defaultTimeout": "00:05:00",
   "enableIPv6": false,
+  "waitForMikrotik": false,
   "skipCertificateCheck": true,
   "domains": [
     "ya.ru",
@@ -70,6 +71,7 @@ zip MikroTikAddressListApp.zip MikroTikAddressListApp.dll MikroTikAddressListApp
 | `useTtlAsTimeout` | Use DNS TTL as address-list entry timeout |
 | `defaultTimeout` | Default timeout (when TTL mode is off) |
 | `enableIPv6` | Send AAAA records to `/ipv6/firewall/address-list` |
+| `waitForMikrotik` | Wait for MikroTik confirmation before returning DNS response |
 | `skipCertificateCheck` | Ignore SSL certificate errors |
 | `domains` | List of monitored domains |
 
