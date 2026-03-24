@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MikroTik Address List — Technitium DNS App</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0f1117;
+            --bg-secondary: #1a1d27;
+            --bg-card: #1e2130;
+            --bg-input: #252838;
+            --border: #2d3148;
+            --border-focus: #6366f1;
+            --text-primary: #e4e5eb;
+            --text-secondary: #9ca0b0;
+            --text-muted: #6b7084;
+            --accent: #6366f1;
+            --accent-hover: #818cf8;
+            --accent-glow: rgba(99, 102, 241, 0.15);
+            --success: #22c55e;
+            --success-bg: rgba(34, 197, 94, 0.1);
+            --error: #ef4444;
+            --error-bg: rgba(239, 68, 68, 0.1);
+            --warning: #f59e0b;
+            --warning-bg: rgba(245, 158, 11, 0.1);
+            --radius: 12px;
+            --radius-sm: 8px;
+            --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container { max-width: 720px; margin: 0 auto; padding: 40px 24px; }
+
+        /* Header */
+        .header { text-align: center; margin-bottom: 40px; }
+
+        .header-top {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 16px;
+        }
+
+        .lang-switcher {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 3px;
+        }
+
+        .lang-btn {
+            padding: 4px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            background: transparent;
+            color: var(--text-muted);
+            transition: all 0.2s;
+        }
+
+        .lang-btn.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .header-icon {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, var(--accent), #a855f7);
+            border-radius: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+            font-size: 28px;
+            box-shadow: 0 8px 32px rgba(99, 102, 241, 0.3);
+        }
+
+        .header h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+        .header p { color: var(--text-secondary); font-size: 14px; }
+
+        /* Connection bar */
+        .connection-bar {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .connection-bar .field { flex: 1; }
+        .connection-bar .field-token { flex: 2; }
+
+        .connection-bar label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .connection-bar input {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 13px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        .connection-bar input:focus {
+            outline: none;
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .btn-connect {
+            padding: 8px 20px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .btn-connect:hover { background: var(--accent-hover); }
+        .btn-connect:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 500;
+            z-index: 1000;
+            transform: translateX(120%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            max-width: 400px;
+        }
+
+        .toast.show { transform: translateX(0); }
+        .toast.success { background: var(--success-bg); border: 1px solid var(--success); color: var(--success); }
+        .toast.error { background: var(--error-bg); border: 1px solid var(--error); color: var(--error); }
+        .toast.warning { background: var(--warning-bg); border: 1px solid var(--warning); color: var(--warning); }
+
+        /* Card */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 16px;
+            overflow: hidden;
+            transition: border-color 0.2s;
+        }
+
+        .card:hover { border-color: #3d4162; }
+
+        .card-header {
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .card-header h3 { font-size: 14px; font-weight: 600; }
+
+        .card-body { padding: 20px; }
+
+        /* Form elements */
+        .form-group { margin-bottom: 16px; }
+        .form-group:last-child { margin-bottom: 0; }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="password"],
+        .form-group input[type="url"] {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .form-group .hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        /* Toggle switch */
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .toggle-row:last-child { border-bottom: none; }
+        .toggle-label { font-size: 14px; font-weight: 500; }
+        .toggle-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+        .toggle { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            width: 18px; height: 18px;
+            left: 2px; bottom: 2px;
+            background: var(--text-muted);
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+
+        .toggle input:checked+.toggle-slider { background: var(--accent); border-color: var(--accent); }
+        .toggle input:checked+.toggle-slider::before { transform: translateX(20px); background: white; }
+
+        /* Domain lists */
+        .list-group { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+        .list-group:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+        .list-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .list-header input {
+            flex: 1;
+            padding: 8px 12px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--accent);
+            font-size: 14px;
+            font-weight: 600;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .list-header input:focus {
+            outline: none;
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .list-header .list-count {
+            font-size: 12px;
+            color: var(--text-muted);
+            background: var(--bg-input);
+            padding: 2px 8px;
+            border-radius: 10px;
+            white-space: nowrap;
+        }
+
+        .btn-remove-list {
+            width: 32px; height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            font-size: 16px;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .btn-remove-list:hover { background: var(--error-bg); border-color: var(--error); color: var(--error); }
+
+        .domain-list { list-style: none; }
+
+        .domain-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            margin-bottom: 6px;
+            font-size: 13px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            transition: all 0.2s;
+            animation: slideIn 0.2s ease;
+        }
+
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+
+        .domain-item:hover { border-color: #3d4162; }
+        .domain-item span { flex: 1; }
+
+        .domain-remove {
+            width: 24px; height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .domain-remove:hover { background: var(--error-bg); color: var(--error); }
+
+        .domain-add-row { display: flex; gap: 8px; }
+
+        .domain-add-row input {
+            flex: 1;
+            padding: 8px 12px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 13px;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .domain-add-row input:focus {
+            outline: none;
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .btn-add, .btn-add-list {
+            padding: 8px 14px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-add:hover, .btn-add-list:hover {
+            background: var(--accent-glow);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .btn-add-list { width: 100%; margin-top: 12px; padding: 10px; text-align: center; }
+
+        /* Save bar */
+        .save-bar {
+            position: sticky;
+            bottom: 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: var(--shadow);
+            margin-top: 24px;
+        }
+
+        .save-bar .status { font-size: 13px; color: var(--text-muted); }
+        .save-bar .status.connected { color: var(--success); }
+        .save-bar .status.disconnected { color: var(--error); }
+
+        .btn-save {
+            padding: 10px 32px;
+            background: linear-gradient(135deg, var(--accent), #a855f7);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-save:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(99, 102, 241, 0.4); }
+        .btn-save:active { transform: translateY(0); }
+        .btn-save:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        /* Hidden state */
+        .config-panel { display: none; }
+        .config-panel.visible { display: block; }
+
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+        .empty-state .icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+        .empty-state p { font-size: 14px; max-width: 320px; margin: 0 auto; }
+
+        .total-count {
+            font-size: 12px;
+            color: var(--text-muted);
+            background: var(--bg-input);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        @media (max-width: 600px) {
+            .connection-bar { flex-wrap: wrap; }
+            .connection-bar .field, .connection-bar .field-token { flex: 1 1 100%; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="toast" class="toast"></div>
+
+    <div class="container">
+        <div class="header">
+            <div class="header-top">
+                <div class="lang-switcher">
+                    <button class="lang-btn active" onclick="setLang('en')">EN</button>
+                    <button class="lang-btn" onclick="setLang('ru')">RU</button>
+                </div>
+            </div>
+            <div class="header-icon">🛡</div>
+            <h1>MikroTik Address List</h1>
+            <p data-i18n="subtitle">Technitium DNS App — plugin settings</p>
+        </div>
+
+        <!-- Connection -->
+        <div class="connection-bar">
+            <div class="field">
+                <label>Technitium URL</label>
+                <input type="url" id="technitiumUrl" placeholder="http://localhost:5380" value="http://localhost:5380">
+            </div>
+            <div class="field-token">
+                <label>API Token</label>
+                <input type="password" id="apiToken" data-i18n-placeholder="tokenPlaceholder">
+            </div>
+            <button class="btn-connect" id="btnConnect" onclick="loadConfig()" data-i18n="btnLoad">Load</button>
+        </div>
+
+        <!-- Empty state -->
+        <div id="emptyState" class="empty-state">
+            <div class="icon">⚡</div>
+            <p data-i18n="emptyState">Enter the Technitium DNS Server URL and API token, then click "Load" to edit configuration</p>
+        </div>
+
+        <!-- Config panel -->
+        <div id="configPanel" class="config-panel">
+
+            <!-- MikroTik Connection -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>🔗 <span data-i18n="cardConnection">MikroTik Connection</span></h3>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label data-i18n="labelUrl">MikroTik URL</label>
+                        <input type="url" id="cfgMikrotikUrl" placeholder="https://192.168.88.1">
+                        <div class="hint" data-i18n="hintUrl">REST API address (http:// or https://)</div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label data-i18n="labelLogin">Login</label>
+                            <input type="text" id="cfgUsername" placeholder="admin">
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="labelPassword">Password</label>
+                            <input type="password" id="cfgPassword" placeholder="••••••">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Options -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>⚙️ <span data-i18n="cardOptions">Options</span></h3>
+                </div>
+                <div class="card-body">
+                    <div class="toggle-row">
+                        <div>
+                            <div class="toggle-label" data-i18n="toggleEnabled">Plugin enabled</div>
+                            <div class="toggle-desc" data-i18n="toggleEnabledDesc">Process DNS responses and send to MikroTik</div>
+                        </div>
+                        <label class="toggle"><input type="checkbox" id="cfgEnabled"><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="toggle-row">
+                        <div>
+                            <div class="toggle-label" data-i18n="toggleTtl">Use TTL as timeout</div>
+                            <div class="toggle-desc" data-i18n="toggleTtlDesc">MikroTik entry timeout = DNS response TTL</div>
+                        </div>
+                        <label class="toggle"><input type="checkbox" id="cfgUseTtl"><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="toggle-row">
+                        <div>
+                            <div class="toggle-label">IPv6</div>
+                            <div class="toggle-desc" data-i18n="toggleIpv6Desc">Send AAAA records to /ipv6/firewall/address-list</div>
+                        </div>
+                        <label class="toggle"><input type="checkbox" id="cfgIPv6"><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="toggle-row">
+                        <div>
+                            <div class="toggle-label" data-i18n="toggleWait">Wait for MikroTik</div>
+                            <div class="toggle-desc" data-i18n="toggleWaitDesc">Hold DNS response until MikroTik confirms</div>
+                        </div>
+                        <label class="toggle"><input type="checkbox" id="cfgWaitForMikrotik"><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="toggle-row">
+                        <div>
+                            <div class="toggle-label" data-i18n="toggleSsl">Skip SSL check</div>
+                            <div class="toggle-desc" data-i18n="toggleSslDesc">Ignore MikroTik SSL certificate errors</div>
+                        </div>
+                        <label class="toggle"><input type="checkbox" id="cfgSkipCert"><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="form-group" style="margin-top: 16px;">
+                        <label data-i18n="labelTimeout">Default timeout</label>
+                        <input type="text" id="cfgTimeout" placeholder="00:05:00">
+                        <div class="hint" data-i18n="hintTimeout">Format: HH:MM:SS — used when TTL mode is off</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Domain Lists -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>🌐 <span data-i18n="cardDomains">Domain Lists</span></h3>
+                    <span class="total-count" id="totalCount">0</span>
+                </div>
+                <div class="card-body">
+                    <div id="domainListsContainer"></div>
+                    <button class="btn-add-list" onclick="addList()">+ <span data-i18n="btnAddList">Add list</span></button>
+                    <div class="hint" style="margin-top: 8px;" data-i18n="hintSubdomains">Subdomains are tracked automatically (sub.example.com → example.com)</div>
+                </div>
+            </div>
+
+            <!-- Save bar -->
+            <div class="save-bar">
+                <span class="status" id="statusText" data-i18n="statusDisconnected">Not connected</span>
+                <button class="btn-save" id="btnSave" onclick="saveConfig()">💾 <span data-i18n="btnSave">Save</span></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const APP_NAME = 'MikroTik Address List';
+        let domainLists = {}; // { listName: [domains] }
+        let connected = false;
+        let currentLang = 'en';
+
+        // ─── i18n ───────────────────────────────────
+        const i18n = {
+            en: {
+                subtitle: 'Technitium DNS App — plugin settings',
+                tokenPlaceholder: 'Paste API token',
+                btnLoad: 'Load',
+                emptyState: 'Enter the Technitium DNS Server URL and API token, then click "Load" to edit configuration',
+                cardConnection: 'MikroTik Connection',
+                labelUrl: 'MikroTik URL',
+                hintUrl: 'REST API address (http:// or https://)',
+                labelLogin: 'Login',
+                labelPassword: 'Password',
+                cardOptions: 'Options',
+                toggleEnabled: 'Plugin enabled',
+                toggleEnabledDesc: 'Process DNS responses and send to MikroTik',
+                toggleTtl: 'Use TTL as timeout',
+                toggleTtlDesc: 'MikroTik entry timeout = DNS response TTL',
+                toggleIpv6Desc: 'Send AAAA records to /ipv6/firewall/address-list',
+                toggleWait: 'Wait for MikroTik',
+                toggleWaitDesc: 'Hold DNS response until MikroTik confirms',
+                toggleSsl: 'Skip SSL check',
+                toggleSslDesc: 'Ignore MikroTik SSL certificate errors',
+                labelTimeout: 'Default timeout',
+                hintTimeout: 'Format: HH:MM:SS — used when TTL mode is off',
+                cardDomains: 'Domain Lists',
+                btnAddList: 'Add list',
+                hintSubdomains: 'Subdomains are tracked automatically (sub.example.com → example.com)',
+                statusDisconnected: 'Not connected',
+                statusConnected: '● Connected',
+                statusError: '● Connection error',
+                btnSave: 'Save',
+                listNamePlaceholder: 'list-name',
+                domainPlaceholder: 'example.com',
+                btnAddDomain: '+ Add',
+                toastLoaded: 'Configuration loaded',
+                toastSaved: 'Configuration saved',
+                toastDuplicate: 'Domain already in list',
+                toastInvalidDomain: 'Invalid domain name',
+                toastListExists: 'List name already exists',
+                toastLoading: 'Loading...',
+                toastSaving: 'Saving...',
+                removeList: 'Remove list',
+                removeDomain: 'Remove',
+            },
+            ru: {
+                subtitle: 'Technitium DNS App — настройки плагина',
+                tokenPlaceholder: 'Вставьте API-токен',
+                btnLoad: 'Загрузить',
+                emptyState: 'Укажите URL Technitium DNS Server и API-токен, затем нажмите «Загрузить» для редактирования конфигурации',
+                cardConnection: 'Подключение к MikroTik',
+                labelUrl: 'URL MikroTik',
+                hintUrl: 'REST API адрес роутера (http:// или https://)',
+                labelLogin: 'Логин',
+                labelPassword: 'Пароль',
+                cardOptions: 'Параметры',
+                toggleEnabled: 'Плагин включён',
+                toggleEnabledDesc: 'Обработка DNS-ответов и отправка в MikroTik',
+                toggleTtl: 'Использовать TTL как timeout',
+                toggleTtlDesc: 'Timeout записи в MikroTik = TTL из DNS-ответа',
+                toggleIpv6Desc: 'Отправлять AAAA-записи в /ipv6/firewall/address-list',
+                toggleWait: 'Ждать ответ MikroTik',
+                toggleWaitDesc: 'Задерживать DNS-ответ до подтверждения от MikroTik',
+                toggleSsl: 'Пропустить проверку SSL',
+                toggleSslDesc: 'Игнорировать ошибки SSL-сертификата MikroTik',
+                labelTimeout: 'Timeout по умолчанию',
+                hintTimeout: 'Формат: HH:MM:SS — используется если TTL-режим выключен',
+                cardDomains: 'Списки доменов',
+                btnAddList: 'Добавить список',
+                hintSubdomains: 'Поддомены отслеживаются автоматически (sub.example.com → example.com)',
+                statusDisconnected: 'Не подключено',
+                statusConnected: '● Подключено',
+                statusError: '● Ошибка подключения',
+                btnSave: 'Сохранить',
+                listNamePlaceholder: 'имя-листа',
+                domainPlaceholder: 'example.com',
+                btnAddDomain: '+ Добавить',
+                toastLoaded: 'Конфигурация загружена',
+                toastSaved: 'Конфигурация сохранена',
+                toastDuplicate: 'Домен уже в списке',
+                toastInvalidDomain: 'Некорректное имя домена',
+                toastListExists: 'Список с таким именем уже существует',
+                toastLoading: 'Загрузка...',
+                toastSaving: 'Сохранение...',
+                removeList: 'Удалить список',
+                removeDomain: 'Удалить',
+            }
+        };
+
+        function t(key) { return i18n[currentLang][key] || key; }
+
+        function setLang(lang) {
+            currentLang = lang;
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent === lang.toUpperCase());
+            });
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                el.textContent = t(el.dataset.i18n);
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                el.placeholder = t(el.dataset.i18nPlaceholder);
+            });
+            renderDomainLists();
+            if (connected) {
+                document.getElementById('statusText').textContent = t('statusConnected');
+            }
+            localStorage.setItem('mikrotik-app-lang', lang);
+        }
+
+        // ─── Domain Lists ───────────────────────────
+        function renderDomainLists() {
+            const container = document.getElementById('domainListsContainer');
+            const listNames = Object.keys(domainLists);
+            let totalDomains = 0;
+
+            container.innerHTML = listNames.map((listName, li) => {
+                const domains = domainLists[listName];
+                totalDomains += domains.length;
+                return `<div class="list-group">
+                    <div class="list-header">
+                        <input type="text" value="${escapeAttr(listName)}" onchange="renameList('${escapeAttr(listName)}', this.value)"
+                            placeholder="${t('listNamePlaceholder')}">
+                        <span class="list-count">${domains.length}</span>
+                        <button class="btn-remove-list" onclick="removeList('${escapeAttr(listName)}')" title="${t('removeList')}">×</button>
+                    </div>
+                    <ul class="domain-list">
+                        ${domains.map((d, di) => `<li class="domain-item">
+                            <span>${escapeHtml(d)}</span>
+                            <button class="domain-remove" onclick="removeDomain('${escapeAttr(listName)}', ${di})" title="${t('removeDomain')}">×</button>
+                        </li>`).join('')}
+                    </ul>
+                    <div class="domain-add-row">
+                        <input type="text" id="newDomain_${li}" placeholder="${t('domainPlaceholder')}"
+                            onkeydown="if(event.key==='Enter') addDomain('${escapeAttr(listName)}', ${li})">
+                        <button class="btn-add" onclick="addDomain('${escapeAttr(listName)}', ${li})">${t('btnAddDomain')}</button>
+                    </div>
+                </div>`;
+            }).join('');
+
+            document.getElementById('totalCount').textContent = totalDomains;
+        }
+
+        function addList() {
+            let name = 'new-list';
+            let i = 1;
+            while (domainLists.hasOwnProperty(name)) {
+                name = 'new-list-' + i++;
+            }
+            domainLists[name] = [];
+            renderDomainLists();
+        }
+
+        function removeList(name) {
+            delete domainLists[name];
+            renderDomainLists();
+        }
+
+        function renameList(oldName, newName) {
+            newName = newName.trim();
+            if (!newName || newName === oldName) return;
+            if (domainLists.hasOwnProperty(newName)) {
+                showToast('warning', t('toastListExists'));
+                renderDomainLists();
+                return;
+            }
+            const domains = domainLists[oldName];
+            delete domainLists[oldName];
+            domainLists[newName] = domains;
+        }
+
+        function addDomain(listName, listIndex) {
+            const input = document.getElementById('newDomain_' + listIndex);
+            let domain = input.value.trim().toLowerCase().replace(/\.+$/, '');
+            if (!domain) return;
+
+            if (domainLists[listName].includes(domain)) {
+                showToast('warning', t('toastDuplicate'));
+                return;
+            }
+
+            if (!/^[a-z0-9]([a-z0-9\-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9\-]*[a-z0-9])?)*$/.test(domain)) {
+                showToast('error', t('toastInvalidDomain'));
+                return;
+            }
+
+            domainLists[listName].push(domain);
+            renderDomainLists();
+            setTimeout(() => {
+                const inp = document.getElementById('newDomain_' + listIndex);
+                if (inp) inp.focus();
+            }, 50);
+        }
+
+        function removeDomain(listName, index) {
+            domainLists[listName].splice(index, 1);
+            renderDomainLists();
+        }
+
+        // ─── Helpers ────────────────────────────────
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function escapeAttr(str) {
+            return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+
+        function showToast(type, message) {
+            const toast = document.getElementById('toast');
+            toast.className = 'toast ' + type;
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 4000);
+        }
+
+        // ─── API ────────────────────────────────────
+        async function apiRequest(endpoint, options = {}) {
+            const baseUrl = document.getElementById('technitiumUrl').value.replace(/\/+$/, '');
+            const token = document.getElementById('apiToken').value;
+            const url = `${baseUrl}/${endpoint}${endpoint.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}`;
+            const response = await fetch(url, options);
+            const data = await response.json();
+            if (data.status === 'error') throw new Error(data.errorMessage || 'API Error');
+            return data;
+        }
+
+        async function loadConfig() {
+            const btn = document.getElementById('btnConnect');
+            btn.disabled = true;
+            btn.textContent = t('toastLoading');
+
+            try {
+                const data = await apiRequest(`api/apps/config/get?name=${encodeURIComponent(APP_NAME)}`);
+                const config = JSON.parse(data.response.config);
+
+                document.getElementById('cfgEnabled').checked = config.enabled !== false;
+                document.getElementById('cfgMikrotikUrl').value = config.mikrotikUrl || '';
+                document.getElementById('cfgUsername').value = config.mikrotikUsername || '';
+                document.getElementById('cfgPassword').value = config.mikrotikPassword || '';
+                document.getElementById('cfgUseTtl').checked = config.useTtlAsTimeout !== false;
+                document.getElementById('cfgTimeout').value = config.defaultTimeout || '00:05:00';
+                document.getElementById('cfgIPv6').checked = config.enableIPv6 === true;
+                document.getElementById('cfgWaitForMikrotik').checked = config.waitForMikrotik === true;
+                document.getElementById('cfgSkipCert').checked = config.skipCertificateCheck !== false;
+
+                domainLists = (typeof config.domainLists === 'object' && config.domainLists !== null)
+                    ? JSON.parse(JSON.stringify(config.domainLists))
+                    : {};
+                renderDomainLists();
+
+                document.getElementById('emptyState').style.display = 'none';
+                document.getElementById('configPanel').classList.add('visible');
+
+                connected = true;
+                document.getElementById('statusText').textContent = t('statusConnected');
+                document.getElementById('statusText').className = 'status connected';
+
+                showToast('success', t('toastLoaded'));
+            } catch (err) {
+                showToast('error', err.message);
+                document.getElementById('statusText').textContent = t('statusError');
+                document.getElementById('statusText').className = 'status disconnected';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = t('btnLoad');
+            }
+        }
+
+        async function saveConfig() {
+            const btn = document.getElementById('btnSave');
+            btn.disabled = true;
+            btn.innerHTML = '💾 ' + t('toastSaving');
+
+            try {
+                const config = {
+                    enabled: document.getElementById('cfgEnabled').checked,
+                    mikrotikUrl: document.getElementById('cfgMikrotikUrl').value,
+                    mikrotikUsername: document.getElementById('cfgUsername').value,
+                    mikrotikPassword: document.getElementById('cfgPassword').value,
+                    useTtlAsTimeout: document.getElementById('cfgUseTtl').checked,
+                    defaultTimeout: document.getElementById('cfgTimeout').value,
+                    enableIPv6: document.getElementById('cfgIPv6').checked,
+                    waitForMikrotik: document.getElementById('cfgWaitForMikrotik').checked,
+                    skipCertificateCheck: document.getElementById('cfgSkipCert').checked,
+                    domainLists: domainLists
+                };
+
+                await apiRequest(`api/apps/config/set?name=${encodeURIComponent(APP_NAME)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'config=' + encodeURIComponent(JSON.stringify(config, null, 2))
+                });
+
+                showToast('success', t('toastSaved'));
+            } catch (err) {
+                showToast('error', err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '💾 ' + t('btnSave');
+            }
+        }
+
+        // ─── Init ───────────────────────────────────
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('url')) document.getElementById('technitiumUrl').value = params.get('url');
+
+        const savedLang = localStorage.getItem('mikrotik-app-lang') || (navigator.language.startsWith('ru') ? 'ru' : 'en');
+        setLang(savedLang);
+
+        if (params.get('token')) {
+            document.getElementById('apiToken').value = params.get('token');
+            loadConfig();
+        }
+    </script>
+
+</body>
+
+</html>
