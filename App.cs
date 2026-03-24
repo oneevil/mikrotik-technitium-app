@@ -31,13 +31,14 @@ namespace MikroTikAddressList
         string _mikrotikUrl;
         string _mikrotikUsername;
         string _mikrotikPassword;
-        string _addressListName;
         bool _useTtlAsTimeout;
         string _defaultTimeout;
         bool _enableIPv6;
         bool _waitForMikrotik;
         bool _skipCertificateCheck;
-        HashSet<string> _domains;
+
+        // domain -> addressListName mapping
+        Dictionary<string, string> _domainToList;
 
         HttpClient _httpClient;
 
@@ -71,26 +72,26 @@ namespace MikroTikAddressList
             return null;
         }
 
-        private bool IsDomainMonitored(string domain)
+        private string GetMatchedListName(string domain)
         {
             domain = domain.TrimEnd('.').ToLowerInvariant();
 
             do
             {
-                if (_domains.Contains(domain))
-                    return true;
+                if (_domainToList.TryGetValue(domain, out string listName))
+                    return listName;
 
                 domain = GetParentZone(domain);
             }
             while (domain != null);
 
-            return false;
+            return null;
         }
 
-        private async Task SendToMikroTikAsync(string ipAddress, string domain, uint ttl, bool isIPv6)
+        private async Task SendToMikroTikAsync(string ipAddress, string domain, uint ttl, bool isIPv6, string listName)
         {
             // Deduplication: skip if we sent this IP recently
-            string dedupKey = ipAddress + "|" + _addressListName;
+            string dedupKey = ipAddress + "|" + listName;
 
             if (_recentlySent.TryGetValue(dedupKey, out DateTime lastSent))
             {
@@ -112,7 +113,7 @@ namespace MikroTikAddressList
                 // Build request body
                 var body = new Dictionary<string, string>
                 {
-                    { "list", _addressListName },
+                    { "list", listName },
                     { "address", ipAddress },
                     { "comment", "Technitium: " + domain },
                     { "timeout", timeout }
@@ -130,7 +131,7 @@ namespace MikroTikAddressList
 
                 if (response.IsSuccessStatusCode)
                 {
-                    _dnsServer.WriteLog("[MikroTikAddressList] Added " + ipAddress + " (" + domain + ") to list '" + _addressListName + "' timeout=" + timeout);
+                    _dnsServer.WriteLog("[MikroTikAddressList] Added " + ipAddress + " (" + domain + ") to list '" + listName + "' timeout=" + timeout);
                 }
                 else
                 {
@@ -184,23 +185,27 @@ namespace MikroTikAddressList
             _mikrotikUrl = jsonConfig.GetPropertyValue("mikrotikUrl", "https://192.168.88.1");
             _mikrotikUsername = jsonConfig.GetPropertyValue("mikrotikUsername", "admin");
             _mikrotikPassword = jsonConfig.GetPropertyValue("mikrotikPassword", "");
-            _addressListName = jsonConfig.GetPropertyValue("addressListName", "dns-resolved");
             _useTtlAsTimeout = jsonConfig.GetPropertyValue("useTtlAsTimeout", true);
             _defaultTimeout = jsonConfig.GetPropertyValue("defaultTimeout", "00:05:00");
             _enableIPv6 = jsonConfig.GetPropertyValue("enableIPv6", false);
             _waitForMikrotik = jsonConfig.GetPropertyValue("waitForMikrotik", false);
             _skipCertificateCheck = jsonConfig.GetPropertyValue("skipCertificateCheck", true);
 
-            // Parse domains list
-            _domains = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // Parse domain-to-list mappings
+            _domainToList = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-            if (jsonConfig.TryGetProperty("domains", out JsonElement jsonDomains))
+            // "domainLists" maps list names to domain arrays
+            if (jsonConfig.TryGetProperty("domainLists", out JsonElement jsonDomainLists))
             {
-                foreach (JsonElement jsonDomain in jsonDomains.EnumerateArray())
+                foreach (JsonProperty prop in jsonDomainLists.EnumerateObject())
                 {
-                    string domain = jsonDomain.GetString();
-                    if (!string.IsNullOrWhiteSpace(domain))
-                        _domains.Add(domain.Trim().TrimEnd('.').ToLowerInvariant());
+                    string listName = prop.Name;
+                    foreach (JsonElement jsonDomain in prop.Value.EnumerateArray())
+                    {
+                        string domain = jsonDomain.GetString();
+                        if (!string.IsNullOrWhiteSpace(domain))
+                            _domainToList[domain.Trim().TrimEnd('.').ToLowerInvariant()] = listName;
+                    }
                 }
             }
 
@@ -227,7 +232,7 @@ namespace MikroTikAddressList
             // Clear dedup cache on config reload
             _recentlySent.Clear();
 
-            _dnsServer.WriteLog("[MikroTikAddressList] Initialized. Monitoring " + _domains.Count + " domain(s). MikroTik: " + _mikrotikUrl + " List: " + _addressListName);
+            _dnsServer.WriteLog("[MikroTikAddressList] Initialized. Monitoring " + _domainToList.Count + " domain(s). MikroTik: " + _mikrotikUrl);
 
             return Task.CompletedTask;
         }
@@ -248,7 +253,8 @@ namespace MikroTikAddressList
                 DnsQuestionRecord question = request.Question[0];
                 string queriedDomain = question.Name.TrimEnd('.');
 
-                if (!IsDomainMonitored(queriedDomain))
+                string matchedList = GetMatchedListName(queriedDomain);
+                if (matchedList == null)
                     return response;
 
                 // Periodically clean up dedup cache
@@ -267,7 +273,7 @@ namespace MikroTikAddressList
                                 if (aRecord != null)
                                 {
                                     string ip = aRecord.Address.ToString();
-                                    tasks.Add(SendToMikroTikAsync(ip, queriedDomain, record.TTL, false));
+                                    tasks.Add(SendToMikroTikAsync(ip, queriedDomain, record.TTL, false, matchedList));
                                 }
                             }
                             break;
@@ -281,7 +287,7 @@ namespace MikroTikAddressList
                                 if (aaaaRecord != null)
                                 {
                                     string ip = aaaaRecord.Address.ToString();
-                                    tasks.Add(SendToMikroTikAsync(ip, queriedDomain, record.TTL, true));
+                                    tasks.Add(SendToMikroTikAsync(ip, queriedDomain, record.TTL, true, matchedList));
                                 }
                             }
                             break;

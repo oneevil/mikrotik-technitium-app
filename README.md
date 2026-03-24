@@ -48,16 +48,15 @@ zip MikroTikAddressListApp.zip MikroTikAddressListApp.dll MikroTikAddressListApp
   "mikrotikUrl": "https://192.168.88.1",
   "mikrotikUsername": "admin",
   "mikrotikPassword": "password",
-  "addressListName": "dns-resolved",
   "useTtlAsTimeout": true,
   "defaultTimeout": "00:05:00",
   "enableIPv6": false,
   "waitForMikrotik": false,
   "skipCertificateCheck": true,
-  "domains": [
-    "ya.ru",
-    "google.com"
-  ]
+  "domainLists": {
+    "youtube": ["youtube.com", "googlevideo.com"],
+    "social": ["facebook.com", "instagram.com"]
+  }
 }
 ```
 
@@ -67,13 +66,12 @@ zip MikroTikAddressListApp.zip MikroTikAddressListApp.dll MikroTikAddressListApp
 | `mikrotikUrl` | MikroTik REST API URL |
 | `mikrotikUsername` | Login |
 | `mikrotikPassword` | Password |
-| `addressListName` | MikroTik address-list name |
 | `useTtlAsTimeout` | Use DNS TTL as address-list entry timeout |
 | `defaultTimeout` | Default timeout (when TTL mode is off) |
 | `enableIPv6` | Send AAAA records to `/ipv6/firewall/address-list` |
 | `waitForMikrotik` | Wait for MikroTik confirmation before returning DNS response |
 | `skipCertificateCheck` | Ignore SSL certificate errors |
-| `domains` | List of monitored domains |
+| `domainLists` | Map of address-list names to domain arrays |
 
 ## Verification
 
