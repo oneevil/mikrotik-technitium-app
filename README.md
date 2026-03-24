@@ -26,7 +26,7 @@ A plugin for [Technitium DNS Server](https://technitium.com/dns/) that automatic
 Requires .NET SDK (9.0+):
 
 ```bash
-cd MikroTikAddressListApp
+cd mikrotik-technitium-app
 dotnet build -c Release
 cd bin/Release/net9.0
 zip MikroTikAddressListApp.zip MikroTikAddressListApp.dll MikroTikAddressListApp.deps.json dnsApp.config
