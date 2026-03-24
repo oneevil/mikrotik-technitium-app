@@ -73,6 +73,20 @@ zip MikroTikAddressListApp.zip MikroTikAddressListApp.dll MikroTikAddressListApp
 | `skipCertificateCheck` | Ignore SSL certificate errors |
 | `domainLists` | Map of address-list names to domain arrays |
 
+## Config UI
+
+A web-based configuration panel is included. To run it locally:
+
+```bash
+python3 serve.py
+```
+
+Then open: [http://localhost:8080/config-ui.html](http://localhost:8080/config-ui.html)
+
+Enter your Technitium URL (e.g. `http://192.168.88.1:5380`) and API token to load and edit configuration. The proxy server handles CORS automatically.
+
+Supports English and Russian (language switcher in the top-right corner).
+
 ## Verification
 
 ```bash

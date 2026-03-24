@@ -826,8 +826,22 @@
         async function apiRequest(endpoint, options = {}) {
             const baseUrl = document.getElementById('technitiumUrl').value.replace(/\/+$/, '');
             const token = document.getElementById('apiToken').value;
-            const url = `${baseUrl}/${endpoint}${endpoint.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}`;
-            const response = await fetch(url, options);
+
+            // If page is served from same origin as Technitium — direct request
+            // If served via proxy (serve.py) — request to current origin with X-Target header
+            const sameOrigin = window.location.origin === baseUrl || baseUrl === '';
+            const fetchUrl = sameOrigin
+                ? `${baseUrl}/${endpoint}${endpoint.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}`
+                : `/${endpoint}${endpoint.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}`;
+
+            if (!sameOrigin) {
+                options.headers = options.headers || {};
+                if (typeof options.headers === 'object' && !(options.headers instanceof Headers)) {
+                    options.headers['X-Target'] = baseUrl;
+                }
+            }
+
+            const response = await fetch(fetchUrl, options);
             const data = await response.json();
             if (data.status === 'error') throw new Error(data.errorMessage || 'API Error');
             return data;

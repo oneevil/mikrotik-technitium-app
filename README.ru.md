@@ -73,6 +73,20 @@ zip MikroTikAddressListApp.zip MikroTikAddressListApp.dll MikroTikAddressListApp
 | `skipCertificateCheck` | Игнорировать ошибки SSL-сертификата |
 | `domainLists` | Маппинг: имя address-list → массив доменов |
 
+## Веб-интерфейс настройки
+
+Для удобной настройки через браузер:
+
+```bash
+python3 serve.py
+```
+
+Затем откройте: [http://localhost:8080/config-ui.html](http://localhost:8080/config-ui.html)
+
+Укажите URL Technitium (напр. `http://192.168.88.1:5380`) и API-токен. Прокси-сервер обходит CORS автоматически.
+
+Поддерживается английский и русский (переключатель в правом верхнем углу).
+
 ## Проверка
 
 ```bash
